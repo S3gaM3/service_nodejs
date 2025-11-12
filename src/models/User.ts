@@ -1,10 +1,4 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import mongoose, { Schema, Document } from 'mongoose';
 import { IsEmail, IsEnum, IsBoolean, IsDateString, MinLength } from 'class-validator';
 
 export enum UserRole {
@@ -12,42 +6,60 @@ export enum UserRole {
   USER = 'user',
 }
 
-@Entity('users')
-export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ name: 'full_name' })
+export interface IUser extends Document {
+  _id: mongoose.Types.ObjectId;
   fullName: string;
-
-  @Column({ name: 'date_of_birth', type: 'date' })
-  @IsDateString()
   dateOfBirth: Date;
-
-  @Column({ unique: true })
-  @IsEmail()
   email: string;
-
-  @Column()
-  @MinLength(6)
   password: string;
-
-  @Column({
-    type: 'enum',
-    enum: UserRole,
-    default: UserRole.USER,
-  })
-  @IsEnum(UserRole)
   role: UserRole;
-
-  @Column({ name: 'is_active', default: true })
-  @IsBoolean()
   isActive: boolean;
-
-  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
-
-  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }
 
+const UserSchema = new Schema<IUser>(
+  {
+    fullName: {
+      type: String,
+      required: true,
+    },
+    dateOfBirth: {
+      type: Date,
+      required: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    password: {
+      type: String,
+      required: true,
+      minlength: 6,
+    },
+    role: {
+      type: String,
+      enum: Object.values(UserRole),
+      default: UserRole.USER,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  {
+    timestamps: true, // Автоматически создает createdAt и updatedAt
+    collection: 'users',
+  }
+);
+
+// Индекс для быстрого поиска по email
+UserSchema.index({ email: 1 });
+
+export const User = mongoose.model<IUser>('User', UserSchema);
+
+// Экспортируем тип для использования в других местах
+export type User = IUser;

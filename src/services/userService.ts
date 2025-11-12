@@ -1,8 +1,6 @@
-import { Repository } from 'typeorm';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { AppDataSource } from '../config/database';
-import { User, UserRole } from '../models/User';
+import { User, UserRole, IUser } from '../models/User';
 import {
   ValidationError,
   UnauthorizedError,
@@ -13,17 +11,9 @@ import { RegisterDto } from '../dto/RegisterDto';
 import { LoginDto } from '../dto/LoginDto';
 
 export class UserService {
-  private userRepository: Repository<User>;
-
-  constructor() {
-    this.userRepository = AppDataSource.getRepository(User);
-  }
-
-  async register(dto: RegisterDto): Promise<{ user: User; token: string }> {
+  async register(dto: RegisterDto): Promise<{ user: IUser; token: string }> {
     // Проверка существования пользователя
-    const existingUser = await this.userRepository.findOne({
-      where: { email: dto.email },
-    });
+    const existingUser = await User.findOne({ email: dto.email.toLowerCase() });
 
     if (existingUser) {
       throw new ValidationError('User with this email already exists');
@@ -33,33 +23,32 @@ export class UserService {
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
     // Создание пользователя
-    const user = this.userRepository.create({
+    const user = new User({
       fullName: dto.fullName,
       dateOfBirth: new Date(dto.dateOfBirth),
-      email: dto.email,
+      email: dto.email.toLowerCase(),
       password: hashedPassword,
       role: dto.role || UserRole.USER,
       isActive: true,
     });
 
-    const savedUser = await this.userRepository.save(user);
+    const savedUser = await user.save();
 
     // Генерация токена
-    const token = this.generateToken(savedUser.id);
+    const token = this.generateToken(savedUser._id.toString());
 
     // Удаление пароля из ответа
-    const { password, ...userWithoutPassword } = savedUser;
+    const userObject = savedUser.toObject();
+    const { password, ...userWithoutPassword } = userObject;
 
     return {
-      user: userWithoutPassword as User,
+      user: userWithoutPassword as IUser,
       token,
     };
   }
 
-  async login(dto: LoginDto): Promise<{ user: User; token: string }> {
-    const user = await this.userRepository.findOne({
-      where: { email: dto.email },
-    });
+  async login(dto: LoginDto): Promise<{ user: IUser; token: string }> {
+    const user = await User.findOne({ email: dto.email.toLowerCase() });
 
     if (!user) {
       throw new UnauthorizedError('Invalid email or password');
@@ -75,85 +64,79 @@ export class UserService {
       throw new UnauthorizedError('User account is blocked');
     }
 
-    const token = this.generateToken(user.id);
+    const token = this.generateToken(user._id.toString());
 
-    const { password, ...userWithoutPassword } = user;
+    const userObject = user.toObject();
+    const { password, ...userWithoutPassword } = userObject;
 
     return {
-      user: userWithoutPassword as User,
+      user: userWithoutPassword as IUser,
       token,
     };
   }
 
-  async getUserById(userId: string, requesterId: string): Promise<User> {
-    const requester = await this.userRepository.findOne({
-      where: { id: requesterId },
-    });
+  async getUserById(userId: string, requesterId: string): Promise<IUser> {
+    const requester = await User.findById(requesterId);
 
     if (!requester) {
       throw new UnauthorizedError('Requester not found');
     }
 
     // Проверка прав доступа
-    if (requester.id !== userId && requester.role !== UserRole.ADMIN) {
+    if (requester._id.toString() !== userId && requester.role !== UserRole.ADMIN) {
       throw new ForbiddenError('Access denied');
     }
 
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-    });
+    const user = await User.findById(userId);
 
     if (!user) {
       throw new NotFoundError('User not found');
     }
 
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword as User;
+    const userObject = user.toObject();
+    const { password, ...userWithoutPassword } = userObject;
+    return userWithoutPassword as IUser;
   }
 
-  async getAllUsers(requesterId: string): Promise<User[]> {
-    const requester = await this.userRepository.findOne({
-      where: { id: requesterId },
-    });
+  async getAllUsers(requesterId: string): Promise<IUser[]> {
+    const requester = await User.findById(requesterId);
 
     if (!requester || requester.role !== UserRole.ADMIN) {
       throw new ForbiddenError('Admin access required');
     }
 
-    const users = await this.userRepository.find({
-      select: ['id', 'fullName', 'dateOfBirth', 'email', 'role', 'isActive', 'createdAt', 'updatedAt'],
-    });
+    const users = await User.find(
+      {},
+      { password: 0 } // Исключаем пароль из результата
+    );
 
-    return users;
+    return users.map((user) => user.toObject() as IUser);
   }
 
-  async blockUser(userId: string, requesterId: string): Promise<User> {
-    const requester = await this.userRepository.findOne({
-      where: { id: requesterId },
-    });
+  async blockUser(userId: string, requesterId: string): Promise<IUser> {
+    const requester = await User.findById(requesterId);
 
     if (!requester) {
       throw new UnauthorizedError('Requester not found');
     }
 
     // Проверка прав доступа
-    if (requester.id !== userId && requester.role !== UserRole.ADMIN) {
+    if (requester._id.toString() !== userId && requester.role !== UserRole.ADMIN) {
       throw new ForbiddenError('Access denied');
     }
 
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-    });
+    const user = await User.findById(userId);
 
     if (!user) {
       throw new NotFoundError('User not found');
     }
 
     user.isActive = false;
-    const updatedUser = await this.userRepository.save(user);
+    const updatedUser = await user.save();
 
-    const { password, ...userWithoutPassword } = updatedUser;
-    return userWithoutPassword as User;
+    const userObject = updatedUser.toObject();
+    const { password, ...userWithoutPassword } = userObject;
+    return userWithoutPassword as IUser;
   }
 
   private generateToken(userId: string): string {
@@ -169,4 +152,3 @@ export class UserService {
     );
   }
 }
-

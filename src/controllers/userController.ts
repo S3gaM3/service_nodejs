@@ -41,7 +41,7 @@ export class UserController {
   getUserById = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      const requesterId = req.user!.id;
+      const requesterId = req.user!._id.toString();
 
       const user = await this.userService.getUserById(id, requesterId);
 
@@ -56,7 +56,7 @@ export class UserController {
 
   getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const requesterId = req.user!.id;
+      const requesterId = req.user!._id.toString();
 
       const users = await this.userService.getAllUsers(requesterId);
 
@@ -72,7 +72,7 @@ export class UserController {
   blockUser = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      const requesterId = req.user!.id;
+      const requesterId = req.user!._id.toString();
 
       const user = await this.userService.blockUser(id, requesterId);
 

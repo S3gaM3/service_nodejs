@@ -1,45 +1,48 @@
-import { DataSource } from 'typeorm';
-import { User } from '../models/User';
+import mongoose from 'mongoose';
+import { MongoClient, MongoClientOptions } from 'mongodb';
+import { attachDatabasePool } from '@vercel/functions';
 
-// Поддержка Vercel Postgres (POSTGRES_URL) и стандартных переменных окружения
-const getDataSourceConfig = () => {
-  // Приоритет: Vercel Postgres URL
-  if (process.env.POSTGRES_URL) {
-    return {
-      type: 'postgres' as const,
-      url: process.env.POSTGRES_URL,
-      entities: [User],
-      // В production используйте миграции вместо synchronize
-      synchronize: process.env.NODE_ENV === 'development',
-      logging: process.env.NODE_ENV === 'development',
-      // Vercel Postgres всегда требует SSL
-      ssl: {
-        rejectUnauthorized: false,
-      },
-      // Дополнительные настройки для стабильности соединения
-      extra: {
-        max: 10, // Максимальное количество соединений в пуле
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
-      },
-    };
-  }
-
-  // Fallback: стандартные переменные окружения для локальной разработки
-  return {
-    type: 'postgres' as const,
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432'),
-    username: process.env.DB_USERNAME || 'postgres',
-    password: process.env.DB_PASSWORD || 'postgres',
-    database: process.env.DB_DATABASE || 'user_service',
-    entities: [User],
-    synchronize: process.env.NODE_ENV === 'development',
-    logging: process.env.NODE_ENV === 'development',
-    // Для локальной разработки SSL обычно не требуется
-    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-  };
+// Конфигурация для MongoDB
+const options: MongoClientOptions = {
+  appName: 'user-service.vercel.integration',
+  maxIdleTimeMS: 5000,
 };
 
-export const AppDataSource = new DataSource(getDataSourceConfig());
+// Создаем клиент для Vercel Functions
+const uri = process.env.MONGODB_URI || process.env.MONGO_URI || '';
+const client = new MongoClient(uri, options);
 
+// Прикрепляем пул соединений для правильной работы в serverless окружении
+if (process.env.VERCEL) {
+  attachDatabasePool(client);
+}
+
+// Функция подключения к MongoDB
+export const connectDatabase = async (): Promise<void> => {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      return; // Уже подключено
+    }
+
+    const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+    
+    if (!mongoUri) {
+      throw new Error('MONGODB_URI or MONGO_URI environment variable is not set');
+    }
+
+    await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
+
+    console.log('MongoDB connected successfully');
+  } catch (error) {
+    console.error('Error connecting to MongoDB:', error);
+    throw error;
+  }
+};
+
+// Экспортируем клиент для использования в других местах (если нужно)
+export { client };
+
+export default mongoose;

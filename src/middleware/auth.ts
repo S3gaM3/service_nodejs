@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { AppDataSource } from '../config/database';
 import { User, UserRole } from '../models/User';
 import { UnauthorizedError } from '../utils/errors';
 
@@ -20,10 +19,7 @@ export const authenticate = async (
       userId: string;
     };
 
-    const userRepository = AppDataSource.getRepository(User);
-    const user = await userRepository.findOne({
-      where: { id: decoded.userId },
-    });
+    const user = await User.findById(decoded.userId);
 
     if (!user || !user.isActive) {
       throw new UnauthorizedError('Invalid or inactive user');
@@ -54,4 +50,3 @@ export const requireAdmin = (
 
   next();
 };
-

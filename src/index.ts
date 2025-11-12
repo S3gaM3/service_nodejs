@@ -1,8 +1,7 @@
-import 'reflect-metadata';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { AppDataSource } from './config/database';
+import { connectDatabase } from './config/database';
 import userRoutes from './routes/userRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
@@ -38,10 +37,7 @@ const initializeDatabase = async () => {
   }
   
   try {
-    if (!AppDataSource.isInitialized) {
-      await AppDataSource.initialize();
-      console.log('Database connected successfully');
-    }
+    await connectDatabase();
     dbInitialized = true;
   } catch (error) {
     console.error('Error during database initialization:', error);
@@ -61,4 +57,3 @@ app.use(async (req, res, next) => {
 
 // Экспорт для Vercel
 export default app;
-
