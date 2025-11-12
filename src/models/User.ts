@@ -1,5 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { IsEmail, IsEnum, IsBoolean, IsDateString, MinLength } from 'class-validator';
 
 export enum UserRole {
   ADMIN = 'admin',
@@ -12,6 +11,18 @@ export interface IUser extends Document {
   dateOfBirth: Date;
   email: string;
   password: string;
+  role: UserRole;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Тип для пользователя без пароля (для ответов API)
+export interface IUserPublic {
+  _id: mongoose.Types.ObjectId;
+  fullName: string;
+  dateOfBirth: Date;
+  email: string;
   role: UserRole;
   isActive: boolean;
   createdAt: Date;

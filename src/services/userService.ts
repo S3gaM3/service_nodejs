@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { User, UserRole, IUser } from '../models/User';
+import jwt, { SignOptions } from 'jsonwebtoken';
+import { User, UserRole, IUser, IUserPublic } from '../models/User';
 import {
   ValidationError,
   UnauthorizedError,
@@ -11,7 +11,7 @@ import { RegisterDto } from '../dto/RegisterDto';
 import { LoginDto } from '../dto/LoginDto';
 
 export class UserService {
-  async register(dto: RegisterDto): Promise<{ user: IUser; token: string }> {
+  async register(dto: RegisterDto): Promise<{ user: IUserPublic; token: string }> {
     // Проверка существования пользователя
     const existingUser = await User.findOne({ email: dto.email.toLowerCase() });
 
@@ -42,12 +42,12 @@ export class UserService {
     const { password, ...userWithoutPassword } = userObject;
 
     return {
-      user: userWithoutPassword as IUser,
+      user: userWithoutPassword as IUserPublic,
       token,
     };
   }
 
-  async login(dto: LoginDto): Promise<{ user: IUser; token: string }> {
+  async login(dto: LoginDto): Promise<{ user: IUserPublic; token: string }> {
     const user = await User.findOne({ email: dto.email.toLowerCase() });
 
     if (!user) {
@@ -70,12 +70,12 @@ export class UserService {
     const { password, ...userWithoutPassword } = userObject;
 
     return {
-      user: userWithoutPassword as IUser,
+      user: userWithoutPassword as IUserPublic,
       token,
     };
   }
 
-  async getUserById(userId: string, requesterId: string): Promise<IUser> {
+  async getUserById(userId: string, requesterId: string): Promise<IUserPublic> {
     const requester = await User.findById(requesterId);
 
     if (!requester) {
@@ -95,10 +95,10 @@ export class UserService {
 
     const userObject = user.toObject();
     const { password, ...userWithoutPassword } = userObject;
-    return userWithoutPassword as IUser;
+    return userWithoutPassword as IUserPublic;
   }
 
-  async getAllUsers(requesterId: string): Promise<IUser[]> {
+  async getAllUsers(requesterId: string): Promise<IUserPublic[]> {
     const requester = await User.findById(requesterId);
 
     if (!requester || requester.role !== UserRole.ADMIN) {
@@ -110,10 +110,14 @@ export class UserService {
       { password: 0 } // Исключаем пароль из результата
     );
 
-    return users.map((user) => user.toObject() as IUser);
+    return users.map((user) => {
+      const userObject = user.toObject();
+      const { password, ...userWithoutPassword } = userObject;
+      return userWithoutPassword as IUserPublic;
+    });
   }
 
-  async blockUser(userId: string, requesterId: string): Promise<IUser> {
+  async blockUser(userId: string, requesterId: string): Promise<IUserPublic> {
     const requester = await User.findById(requesterId);
 
     if (!requester) {
@@ -136,19 +140,21 @@ export class UserService {
 
     const userObject = updatedUser.toObject();
     const { password, ...userWithoutPassword } = userObject;
-    return userWithoutPassword as IUser;
+    return userWithoutPassword as IUserPublic;
   }
 
   private generateToken(userId: string): string {
     const secret: string = process.env.JWT_SECRET || 'secret';
-    const expiresIn: string | number = process.env.JWT_EXPIRES_IN || '24h';
+    const expiresIn: string = process.env.JWT_EXPIRES_IN || '24h';
+    
+    const options: SignOptions = {
+      expiresIn: expiresIn,
+    };
     
     return jwt.sign(
       { userId },
       secret,
-      {
-        expiresIn: expiresIn as string,
-      }
+      options
     );
   }
 }

@@ -1,21 +1,4 @@
 import mongoose from 'mongoose';
-import { MongoClient, MongoClientOptions } from 'mongodb';
-import { attachDatabasePool } from '@vercel/functions';
-
-// Конфигурация для MongoDB
-const options: MongoClientOptions = {
-  appName: 'user-service.vercel.integration',
-  maxIdleTimeMS: 5000,
-};
-
-// Создаем клиент для Vercel Functions
-const uri = process.env.MONGODB_URI || process.env.MONGO_URI || '';
-const client = new MongoClient(uri, options);
-
-// Прикрепляем пул соединений для правильной работы в serverless окружении
-if (process.env.VERCEL) {
-  attachDatabasePool(client);
-}
 
 // Функция подключения к MongoDB
 export const connectDatabase = async (): Promise<void> => {
@@ -33,6 +16,7 @@ export const connectDatabase = async (): Promise<void> => {
     await mongoose.connect(mongoUri, {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
+      maxPoolSize: 10, // Максимальное количество соединений в пуле
     });
 
     console.log('MongoDB connected successfully');
@@ -41,8 +25,5 @@ export const connectDatabase = async (): Promise<void> => {
     throw error;
   }
 };
-
-// Экспортируем клиент для использования в других местах (если нужно)
-export { client };
 
 export default mongoose;
