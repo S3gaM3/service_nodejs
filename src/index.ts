@@ -34,15 +34,30 @@ app.use(async (req, res, next) => {
   }
 });
 
-// Routes
-app.use('/api/users', userRoutes);
-
-// Health check
+// Health check (должен быть перед другими роутами)
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
     message: 'Service is running',
     timestamp: new Date().toISOString(),
+  });
+});
+
+// API Routes
+app.use('/api/users', userRoutes);
+
+// Корневой путь
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    message: 'User Management API',
+    version: '1.0.0',
+    endpoints: {
+      health: '/health',
+      register: '/api/users/register',
+      login: '/api/users/login',
+      users: '/api/users',
+    },
   });
 });
 
