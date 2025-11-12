@@ -157,11 +157,14 @@ export class UserService {
   }
 
   private generateToken(userId: string): string {
+    const secret: string = process.env.JWT_SECRET || 'secret';
+    const expiresIn: string | number = process.env.JWT_EXPIRES_IN || '24h';
+    
     return jwt.sign(
       { userId },
-      process.env.JWT_SECRET || 'secret',
+      secret,
       {
-        expiresIn: process.env.JWT_EXPIRES_IN || '24h',
+        expiresIn: expiresIn as string,
       }
     );
   }
