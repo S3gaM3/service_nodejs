@@ -1,0 +1,93 @@
+.user-details {
+  max-width: 800px;
+}
+
+.user-details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.user-details-header h2 {
+  margin: 0;
+  color: #333;
+}
+
+.user-details-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.5rem;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-row strong {
+  color: #333;
+  font-weight: 600;
+}
+
+.detail-row span {
+  color: #555;
+}
+
+.role-badge,
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.role-badge.admin {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.role-badge.user {
+  background-color: #3498db;
+  color: white;
+}
+
+.status-badge.active {
+  background-color: #27ae60;
+  color: white;
+}
+
+.status-badge.blocked {
+  background-color: #95a5a6;
+  color: white;
+}
+
+.user-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.btn-danger {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #c0392b;
+}
+
+.btn-danger:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+

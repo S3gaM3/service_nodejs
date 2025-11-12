@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { seedDatabase } from '../utils/seed';
 
 // Кэшируем URI для производительности
 const getMongoUri = (): string => {
@@ -35,10 +36,15 @@ export const connectDatabase = async (): Promise<void> => {
       maxPoolSize: 10, // Максимальное количество соединений в пуле
       minPoolSize: 1, // Минимальное количество соединений
       bufferCommands: false, // Отключаем буферизацию команд для serverless
-      bufferMaxEntries: 0, // Отключаем буферизацию для serverless
     });
 
     console.log('MongoDB connected successfully');
+
+    // Инициализируем базу данных (создаем предустановленных пользователей)
+    // Выполняем только в development или при первом запуске
+    if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_SEED === 'true') {
+      await seedDatabase();
+    }
   } catch (error) {
     console.error('Error connecting to MongoDB:', error);
     throw error;

@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import jwt, { SignOptions } from 'jsonwebtoken';
+import type { StringValue } from 'ms';
 import { User, UserRole, IUserPublic } from '../models/User';
 import {
   ValidationError,
@@ -13,7 +14,7 @@ import { removePassword } from '../utils/userHelpers';
 
 // Кэшируем JWT секрет для производительности
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const JWT_EXPIRES_IN: string = process.env.JWT_EXPIRES_IN || '24h';
 
 export class UserService {
   async register(dto: RegisterDto): Promise<{ user: IUserPublic; token: string }> {
@@ -137,7 +138,7 @@ export class UserService {
 
   private generateToken(userId: string): string {
     const options: SignOptions = {
-      expiresIn: JWT_EXPIRES_IN as string | number,
+      expiresIn: JWT_EXPIRES_IN as StringValue,
     };
     
     return jwt.sign(
