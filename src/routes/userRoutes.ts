@@ -8,24 +8,21 @@ import { LoginDto } from '../dto/LoginDto';
 const router = Router();
 const userController = new UserController();
 
-// Регистрация (публичный endpoint)
+// Публичные endpoints
 router.post(
   '/register',
   validateRequest(RegisterDto),
   userController.register
 );
 
-// Авторизация (публичный endpoint)
 router.post('/login', validateRequest(LoginDto), userController.login);
 
-// Получение пользователя по ID (требует аутентификации)
-router.get('/:id', authenticate, userController.getUserById);
-
-// Получение списка пользователей (только для админа)
+// Защищенные endpoints
+// ВАЖНО: GET / должен быть ПЕРЕД GET /:id, иначе /:id перехватит запрос к /
 router.get('/', authenticate, requireAdmin, userController.getAllUsers);
 
-// Блокировка пользователя (требует аутентификации)
+router.get('/:id', authenticate, userController.getUserById);
+
 router.patch('/:id/block', authenticate, userController.blockUser);
 
 export default router;
-

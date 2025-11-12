@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import jwt, { SignOptions } from 'jsonwebtoken';
-import { User, UserRole, IUser, IUserPublic } from '../models/User';
+import { User, UserRole, IUserPublic } from '../models/User';
 import {
   ValidationError,
   UnauthorizedError,
@@ -9,6 +9,11 @@ import {
 } from '../utils/errors';
 import { RegisterDto } from '../dto/RegisterDto';
 import { LoginDto } from '../dto/LoginDto';
+import { removePassword } from '../utils/userHelpers';
+
+// Кэшируем JWT секрет для производительности
+const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
 export class UserService {
   async register(dto: RegisterDto): Promise<{ user: IUserPublic; token: string }> {
@@ -37,12 +42,8 @@ export class UserService {
     // Генерация токена
     const token = this.generateToken(savedUser._id.toString());
 
-    // Удаление пароля из ответа
-    const userObject = savedUser.toObject();
-    const { password, ...userWithoutPassword } = userObject;
-
     return {
-      user: userWithoutPassword as IUserPublic,
+      user: removePassword(savedUser),
       token,
     };
   }
@@ -66,20 +67,25 @@ export class UserService {
 
     const token = this.generateToken(user._id.toString());
 
-    const userObject = user.toObject();
-    const { password, ...userWithoutPassword } = userObject;
-
     return {
-      user: userWithoutPassword as IUserPublic,
+      user: removePassword(user),
       token,
     };
   }
 
   async getUserById(userId: string, requesterId: string): Promise<IUserPublic> {
-    const requester = await User.findById(requesterId);
+    // Оптимизация: проверяем права доступа и получаем пользователя параллельно
+    const [requester, user] = await Promise.all([
+      User.findById(requesterId),
+      User.findById(userId),
+    ]);
 
     if (!requester) {
       throw new UnauthorizedError('Requester not found');
+    }
+
+    if (!user) {
+      throw new NotFoundError('User not found');
     }
 
     // Проверка прав доступа
@@ -87,15 +93,7 @@ export class UserService {
       throw new ForbiddenError('Access denied');
     }
 
-    const user = await User.findById(userId);
-
-    if (!user) {
-      throw new NotFoundError('User not found');
-    }
-
-    const userObject = user.toObject();
-    const { password, ...userWithoutPassword } = userObject;
-    return userWithoutPassword as IUserPublic;
+    return removePassword(user);
   }
 
   async getAllUsers(requesterId: string): Promise<IUserPublic[]> {
@@ -105,23 +103,25 @@ export class UserService {
       throw new ForbiddenError('Admin access required');
     }
 
-    const users = await User.find(
-      {},
-      { password: 0 } // Исключаем пароль из результата
-    );
+    // Оптимизация: исключаем пароль сразу в запросе
+    const users = await User.find({}, { password: 0 });
 
-    return users.map((user) => {
-      const userObject = user.toObject();
-      const { password, ...userWithoutPassword } = userObject;
-      return userWithoutPassword as IUserPublic;
-    });
+    return users.map((user) => removePassword(user));
   }
 
   async blockUser(userId: string, requesterId: string): Promise<IUserPublic> {
-    const requester = await User.findById(requesterId);
+    // Оптимизация: проверяем права доступа и получаем пользователя параллельно
+    const [requester, user] = await Promise.all([
+      User.findById(requesterId),
+      User.findById(userId),
+    ]);
 
     if (!requester) {
       throw new UnauthorizedError('Requester not found');
+    }
+
+    if (!user) {
+      throw new NotFoundError('User not found');
     }
 
     // Проверка прав доступа
@@ -129,31 +129,20 @@ export class UserService {
       throw new ForbiddenError('Access denied');
     }
 
-    const user = await User.findById(userId);
-
-    if (!user) {
-      throw new NotFoundError('User not found');
-    }
-
     user.isActive = false;
     const updatedUser = await user.save();
 
-    const userObject = updatedUser.toObject();
-    const { password, ...userWithoutPassword } = userObject;
-    return userWithoutPassword as IUserPublic;
+    return removePassword(updatedUser);
   }
 
   private generateToken(userId: string): string {
-    const secret: string = process.env.JWT_SECRET || 'secret';
-    const expiresIn: string = process.env.JWT_EXPIRES_IN || '24h';
-    
     const options: SignOptions = {
-      expiresIn: expiresIn,
+      expiresIn: JWT_EXPIRES_IN as string | number,
     };
     
     return jwt.sign(
       { userId },
-      secret,
+      JWT_SECRET,
       options
     );
   }
