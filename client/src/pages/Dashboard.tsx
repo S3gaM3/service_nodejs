@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './Dashboard.css';
 
@@ -23,9 +24,9 @@ const Dashboard = () => {
           <div className="dashboard-card">
             <h3>Быстрые действия</h3>
             <div className="quick-actions">
-              <a href="/users" className="action-link">
+              <Link to="/users" className="action-link">
                 Управление пользователями
-              </a>
+              </Link>
             </div>
           </div>
         )}
